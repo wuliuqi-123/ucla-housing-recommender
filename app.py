@@ -9,7 +9,7 @@ from streamlit_folium import st_folium
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("ucla_enriched_dataset.csv")  # 👈 改成你的文件名
+    df = pd.read_csv("ucla_enriched_dataset.csv") 
     return df
 
 df = load_data()
@@ -118,11 +118,12 @@ st.subheader("🔥 Top 10 Recommendations")
 
 top10 = filtered.sort_values("score", ascending=False).head(10)
 
-st.dataframe(
-    top10[[
-        "monthly_rent",
-        "drive_time",
-        "transit_time",
-        "score"
-    ]]
-)
+st.dataframe(top10[[
+    "neighbourhood_cleansed",
+    "latitude",
+    "longitude",
+    "monthly_rent",
+    "drive_time",
+    "transit_time",
+    "score"
+]])
