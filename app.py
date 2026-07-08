@@ -1,4 +1,10 @@
 import streamlit as st
+
+st.set_page_config(
+    page_title="UCLA Housing Finder",
+    page_icon="🏠",
+    layout="wide"
+)
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
@@ -18,7 +24,17 @@ df = load_data()
 # 2. TITLE
 # =========================
 
-st.title("🏠 UCLA Housing Recommendation System")
+st.title("🏠 UCLA Housing Finder")
+
+st.markdown(
+"""
+Find apartments near UCLA using:
+- 💰 Rent affordability
+- 🚗 Driving commute
+- 🚌 Public transit accessibility
+- ⭐ Custom recommendation score
+"""
+)
 st.write("Find the best apartments based on rent, commute, and score")
 
 # =========================
@@ -26,6 +42,11 @@ st.write("Find the best apartments based on rent, commute, and score")
 # =========================
 
 st.sidebar.header("Filters")
+
+neighborhoods = st.sidebar.multiselect(
+    "Neighborhood",
+    options=sorted(df["neighbourhood_cleansed"].dropna().unique())
+)
 
 max_rent = st.sidebar.slider(
     "Max Monthly Rent",
@@ -66,7 +87,35 @@ filtered = df[
     (df["score"] >= min_score)
 ]
 
-st.write(f"🏡 {len(filtered)} apartments found")
+
+if neighborhoods:
+    filtered = filtered[
+        filtered["neighbourhood_cleansed"].isin(neighborhoods)
+    ]
+
+if len(filtered) == 0:
+    st.warning("No apartments match your filters. Try relaxing the constraints.")
+    st.stop()
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "🏠 Listings Found",
+        len(filtered)
+    )
+
+with col2:
+    st.metric(
+        "💰 Average Rent",
+        f"${filtered['monthly_rent'].mean():.0f}"
+    )
+
+with col3:
+    st.metric(
+        "🚗 Average Drive Time",
+        f"{filtered['drive_time'].mean():.0f} min"
+    )
 
 # =========================
 # 5. MAP CENTER (UCLA)
@@ -97,10 +146,24 @@ for _, row in filtered.iterrows():
         fill=True,
         fill_opacity=0.6,
         popup=f"""
-        🏠 Rent: ${row['monthly_rent']}<br>
-        🚗 Drive: {row['drive_time']} min<br>
-        🚌 Transit: {row['transit_time']} min<br>
-        ⭐ Score: {row['score']:.2f}
+        <b>📍 {row['neighbourhood_cleansed']}</b><br><br>
+
+        💰 Rent:
+        ${row['monthly_rent']:.0f}/month<br>
+
+        🚗 Drive:
+        {row['drive_time']:.0f} min<br>
+
+        🚌 Transit:
+        {row['transit_time']:.0f} min<br>
+
+        ⭐ Score:
+        {row['score']:.2f}<br><br>
+
+        <a href="https://www.google.com/maps?q={row['latitude']},{row['longitude']}" 
+        target="_blank">
+        Open Google Maps
+        </a>
         """
     ).add_to(m)
 
@@ -114,16 +177,30 @@ st_folium(m, width=800, height=500)
 # 8. TOP RECOMMENDATIONS
 # =========================
 
-st.subheader("🔥 Top 10 Recommendations")
 
 top10 = filtered.sort_values("score", ascending=False).head(10)
 
-st.dataframe(top10[[
-    "neighbourhood_cleansed",
-    "latitude",
-    "longitude",
-    "monthly_rent",
-    "drive_time",
-    "transit_time",
-    "score"
-]])
+st.subheader("🔥 Top Recommendations")
+
+
+for i, (_, row) in enumerate(top10.iterrows()):
+
+    with st.container():
+
+        st.markdown(f"""
+        ### 🏠 Recommendation #{i+1}
+
+        📍 **Neighborhood:** {row['neighbourhood_cleansed']}
+
+        💰 **Rent:** ${row['monthly_rent']:.0f}/month
+
+        🚗 **Drive:** {row['drive_time']:.0f} min
+
+        🚌 **Transit:** {row['transit_time']:.0f} min
+
+        ⭐ **Score:** {row['score']:.2f}
+
+        🔗 [Open Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
+
+        ---
+        """)
