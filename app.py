@@ -15,7 +15,9 @@ from streamlit_folium import st_folium
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("ucla_enriched_dataset.csv") 
+    df = pd.read_csv(
+    "ucla_enriched_dataset_filtered.csv"
+    )
     return df
 
 df = load_data()
@@ -46,6 +48,12 @@ st.sidebar.header("Filters")
 neighborhoods = st.sidebar.multiselect(
     "Neighborhood",
     options=sorted(df["neighbourhood_cleansed"].dropna().unique())
+)
+
+room_types = st.sidebar.multiselect(
+    "Room Type",
+    options=sorted(df["room_type"].unique()),
+    default=sorted(df["room_type"].unique())
 )
 
 max_rent = st.sidebar.slider(
@@ -84,7 +92,8 @@ filtered = df[
     (df["monthly_rent"] <= max_rent) &
     (df["drive_time"] <= max_drive) &
     (df["transit_time"] <= max_transit) &
-    (df["score"] >= min_score)
+    (df["score"] >= min_score) &
+    (df["room_type"].isin(room_types))
 ]
 
 
@@ -192,6 +201,8 @@ for i, (_, row) in enumerate(top10.iterrows()):
 
         📍 **Neighborhood:** {row['neighbourhood_cleansed']}
 
+        🏠 **Type:** {row['room_type']}
+
         💰 **Rent:** ${row['monthly_rent']:.0f}/month
 
         🚗 **Drive:** {row['drive_time']:.0f} min
@@ -200,7 +211,11 @@ for i, (_, row) in enumerate(top10.iterrows()):
 
         ⭐ **Score:** {row['score']:.2f}
 
-        🔗 [Open Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
-
         ---
         """)
+
+
+        
+
+
+
