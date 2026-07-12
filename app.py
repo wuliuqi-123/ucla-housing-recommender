@@ -157,6 +157,9 @@ for _, row in filtered.iterrows():
         popup=f"""
         <b>📍 {row['neighbourhood_cleansed']}</b><br><br>
 
+        🏠 Type:
+        {row['room_type']}<br>
+
         💰 Rent:
         ${row['monthly_rent']:.0f}/month<br>
 
@@ -169,8 +172,7 @@ for _, row in filtered.iterrows():
         ⭐ Score:
         {row['score']:.2f}<br><br>
 
-        <a href="https://www.google.com/maps?q={row['latitude']},{row['longitude']}" 
-        target="_blank">
+        <a href="https://www.google.com/maps?q={row['latitude']},{row['longitude']}" target="_blank">
         Open Google Maps
         </a>
         """
@@ -187,9 +189,12 @@ st_folium(m, width=800, height=500)
 # =========================
 
 
-top10 = filtered.sort_values("score", ascending=False).head(10)
+st.subheader("🔥 Top 10 Recommendations")
 
-st.subheader("🔥 Top Recommendations")
+top10 = filtered.sort_values(
+    "score",
+    ascending=False
+).head(10)
 
 
 for i, (_, row) in enumerate(top10.iterrows()):
@@ -199,17 +204,19 @@ for i, (_, row) in enumerate(top10.iterrows()):
         st.markdown(f"""
         ### 🏠 Recommendation #{i+1}
 
-        📍 **Neighborhood:** {row['neighbourhood_cleansed']}
+        📍 **Neighborhood:** {row['neighbourhood_cleansed']}  
 
-        🏠 **Type:** {row['room_type']}
+        🏠 **Type:** {row['room_type']}  
 
-        💰 **Rent:** ${row['monthly_rent']:.0f}/month
+        💰 **Rent:** ${row['monthly_rent']:.0f}/month  
 
-        🚗 **Drive:** {row['drive_time']:.0f} min
+        🚗 **Drive:** {row['drive_time']:.0f} min  
 
-        🚌 **Transit:** {row['transit_time']:.0f} min
+        🚌 **Transit:** {row['transit_time']:.0f} min  
 
-        ⭐ **Score:** {row['score']:.2f}
+        ⭐ **Score:** {row['score']:.2f}  
+
+        🔗 [Open in Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
 
         ---
         """)
