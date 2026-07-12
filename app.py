@@ -13,10 +13,10 @@ from streamlit_folium import st_folium
 # 1. LOAD DATA
 # =========================
 
-@st.cache_data
+@st.cache_data(ttl=0)
 def load_data():
     df = pd.read_csv(
-    "ucla_enriched_dataset_filtered.csv"
+        "ucla_enriched_dataset_filtered.csv"
     )
     return df
 
