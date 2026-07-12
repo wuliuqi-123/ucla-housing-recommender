@@ -39,6 +39,32 @@ Find apartments near UCLA using:
 )
 st.write("Find the best apartments based on rent, commute, and score")
 
+st.info(
+"""
+### ⭐ How does the Recommendation Score work?
+
+The score ranges from 0 to 100.
+
+Higher scores indicate better overall housing options.
+
+The ranking combines:
+
+💰 **Affordability (40%)**
+- Lower estimated monthly rent receives a higher score.
+
+🚗 **Driving Accessibility (30%)**
+- Shorter driving time to UCLA improves the score.
+
+🚌 **Public Transit Accessibility (20%)**
+- Shorter transit time improves the score.
+
+📍 **Neighborhood Quality (10%)**
+- Neighborhood factors are included in the final ranking.
+
+A higher score means a better balance between cost, commute, and location.
+"""
+)
+
 # =========================
 # 3. SIDEBAR FILTERS
 # =========================
@@ -78,10 +104,10 @@ max_transit = st.sidebar.slider(
 )
 
 min_score = st.sidebar.slider(
-    "Min Score",
-    float(df["score"].min()),
-    float(df["score"].max()),
-    float(df["score"].median())
+    "Minimum Recommendation Score",
+    0,
+    100,
+    50
 )
 
 # =========================
@@ -92,7 +118,7 @@ filtered = df[
     (df["monthly_rent"] <= max_rent) &
     (df["drive_time"] <= max_drive) &
     (df["transit_time"] <= max_transit) &
-    (df["score"] >= min_score) &
+    (df["recommendation_score"] >= min_score) &
     (df["room_type"].isin(room_types))
 ]
 
@@ -170,7 +196,7 @@ for _, row in filtered.iterrows():
         {row['transit_time']:.0f} min<br>
 
         ⭐ Score:
-        {row['score']:.2f}<br><br>
+        {row['recommendation_score']:.0f}/100<br><br>
 
         <a href="https://www.google.com/maps?q={row['latitude']},{row['longitude']}" target="_blank">
         Open Google Maps
@@ -214,7 +240,8 @@ for i, (_, row) in enumerate(top10.iterrows()):
 
         🚌 **Transit:** {row['transit_time']:.0f} min  
 
-        ⭐ **Score:** {row['score']:.2f}  
+        ⭐ Recommendation Score:
+        {row['recommendation_score']:.0f}/100
 
         🔗 [Open in Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
 
