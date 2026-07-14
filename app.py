@@ -9,18 +9,71 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
+def generate_explanation(row, df):
+
+    reasons = []
+
+    # Rent comparison
+    median_rent = df["monthly_rent"].median()
+
+    if row["monthly_rent"] < median_rent:
+        diff = (
+            (median_rent - row["monthly_rent"])
+            / median_rent
+            * 100
+        )
+
+        reasons.append(
+            f"💰 {diff:.0f}% lower rent than nearby listings"
+        )
+
+
+    # Drive time comparison
+    median_drive = df["drive_time"].median()
+
+    if row["drive_time"] < median_drive:
+
+        reasons.append(
+            f"🚗 Faster drive commute to UCLA "
+            f"({row['drive_time']:.0f} min)"
+        )
+
+
+    # Transit comparison
+    median_transit = df["transit_time"].median()
+
+    if row["transit_time"] < median_transit:
+
+        reasons.append(
+            f"🚌 Better transit accessibility "
+            f"({row['transit_time']:.0f} min)"
+        )
+
+
+    # Neighborhood
+    median_neigh = df["neigh_score"].median()
+
+    if row["neigh_score"] > median_neigh:
+
+        reasons.append(
+            "📍 Above-average neighborhood score"
+        )
+
+
+    return reasons
+
 # =========================
 # 1. LOAD DATA
 # =========================
 
-@st.cache_data(ttl=0)
-def load_data():
+@st.cache_data
+def load_data(version="v2"):
     df = pd.read_csv(
         "ucla_enriched_dataset_filtered.csv"
     )
     return df
 
-df = load_data()
+df = load_data("v2")
 
 # =========================
 # 2. TITLE
@@ -225,25 +278,42 @@ top10 = filtered.sort_values(
 
 for i, (_, row) in enumerate(top10.iterrows()):
 
+    reasons = generate_explanation(
+        row,
+        df
+    )
+
+    explanation = "<br>".join(
+        ["✅ " + r for r in reasons]
+    )
+
+
     with st.container():
 
         st.markdown(f"""
         ### 🏠 Recommendation #{i+1}
 
-        📍 **Neighborhood:** {row['neighbourhood_cleansed']}  
+        📍 **Neighborhood:** {row['neighbourhood_cleansed']}
 
-        🏠 **Type:** {row['room_type']}  
+        🏠 **Type:** {row['room_type']}
 
-        💰 **Rent:** ${row['monthly_rent']:.0f}/month  
+        💰 **Rent:** ${row['monthly_rent']:.0f}/month
 
-        🚗 **Drive:** {row['drive_time']:.0f} min  
+        🚗 **Drive:** {row['drive_time']:.0f} min
 
-        🚌 **Transit:** {row['transit_time']:.0f} min  
+        🚌 **Transit:** {row['transit_time']:.0f} min
 
-        ⭐ Recommendation Score:
+        ⭐ **Recommendation Score:** 
         {row['recommendation_score']:.0f}/100
 
+
+        ### Why recommended?
+
+        {explanation}
+
+
         🔗 [Open in Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
+
 
         ---
         """)
