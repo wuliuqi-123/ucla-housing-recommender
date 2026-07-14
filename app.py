@@ -14,7 +14,7 @@ def generate_explanation(row, df):
 
     comparable = df[
         (df["neighbourhood_cleansed"] == row["neighbourhood_cleansed"]) &
-        (df["room_type"] == row["room_type"])
+        (df["room_type"] == row["room_type"]) 
     ]
 
     if len(comparable) < 5:
@@ -278,40 +278,45 @@ for i, (_, row) in enumerate(top10.iterrows()):
         df
     )
 
-    explanation = "\n\n".join(
-        [f"- ✅ {reason}" for reason in reasons]
-    )
-
 
     with st.container():
 
-        st.markdown(f"""
-        ### 🏠 Recommendation #{i+1}
+        st.markdown(
+f"""
+### 🏠 Recommendation #{i+1}
 
-        📍 **Neighborhood:** {row['neighbourhood_cleansed']}
+📍 **Neighborhood:** {row['neighbourhood_cleansed']}
 
-        🏠 **Type:** {row['room_type']}
+🏠 **Type:** {row['room_type']}
 
-        💰 **Rent:** ${row['monthly_rent']:.0f}/month
+💰 **Rent:** ${row['monthly_rent']:.0f}/month
 
-        🚗 **Drive:** {row['drive_time']:.0f} min
+🚗 **Drive:** {row['drive_time']:.0f} min
 
-        🚌 **Transit:** {row['transit_time']:.0f} min
+🚌 **Transit:** {row['transit_time']:.0f} min
 
-        ⭐ **Recommendation Score:** 
-        {row['recommendation_score']:.0f}/100
-
-
-        ### Why recommended?
-
-        {explanation}
+⭐ **Recommendation Score:** {row['recommendation_score']:.0f}/100
 
 
-        🔗 [Open in Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
+#### Why recommended?
+
+"""
+        )
 
 
-        ---
-        """)
+        for reason in reasons:
+            st.markdown(
+                f"- ✅ {reason}"
+            )
+
+
+        st.markdown(
+f"""
+🔗 [Open in Google Maps](https://www.google.com/maps?q={row['latitude']},{row['longitude']})
+
+---
+"""
+        )
 
 
         
