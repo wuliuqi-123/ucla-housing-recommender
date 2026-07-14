@@ -190,6 +190,19 @@ min_score = st.sidebar.slider(
     50
 )
 
+st.sidebar.header("Ranking")
+
+sort_option = st.sidebar.selectbox(
+    "Sort Results By",
+    [
+        "⭐ Best Recommendation",
+        "💰 Lowest Rent",
+        "🚗 Shortest Drive",
+        "🚌 Shortest Transit",
+        "📍 Best Neighborhood"
+    ]
+)
+
 # =========================
 # 4. FILTER DATA
 # =========================
@@ -201,6 +214,45 @@ filtered = df[
     (df["recommendation_score"] >= min_score) &
     (df["room_type"].isin(room_types))
 ]
+
+if sort_option == "⭐ Best Recommendation":
+
+    filtered = filtered.sort_values(
+        "recommendation_score",
+        ascending=False
+    )
+
+
+elif sort_option == "💰 Lowest Rent":
+
+    filtered = filtered.sort_values(
+        "monthly_rent",
+        ascending=True
+    )
+
+
+elif sort_option == "🚗 Shortest Drive":
+
+    filtered = filtered.sort_values(
+        "drive_time",
+        ascending=True
+    )
+
+
+elif sort_option == "🚌 Shortest Transit":
+
+    filtered = filtered.sort_values(
+        "transit_time",
+        ascending=True
+    )
+
+
+elif sort_option == "📍 Best Neighborhood":
+
+    filtered = filtered.sort_values(
+        "neigh_score",
+        ascending=False
+    )
 
 
 if neighborhoods:
@@ -295,11 +347,15 @@ st_folium(m, width=800, height=500)
 # =========================
 
 
-st.subheader("🔥 Top 10 Recommendations")
+st.subheader(
+    f"🔥 Top Results — {sort_option}"
+)
+st.caption(
+    f"Showing listings ranked by {sort_option}"
+)
 
 top10 = (
     filtered
-    .sort_values("recommendation_score", ascending=False)
     .head(10)
     .reset_index(drop=True)
 )
