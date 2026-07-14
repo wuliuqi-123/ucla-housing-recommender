@@ -296,51 +296,287 @@ m = folium.Map(location=ucla_center, zoom_start=12)
 # 6. ADD POINTS TO MAP
 # =========================
 
-for _, row in filtered.iterrows():
+for idx, row in filtered.iterrows():
+
+    reasons = generate_explanation(
+        row,
+        filtered
+    )
+
+    reason_text = "".join(
+        [
+            f"✅ {reason}<br>"
+            for reason in reasons[:3]
+        ]
+    )
 
     # color based on score
-    if row["score"] > df["score"].quantile(0.7):
+    score = row["recommendation_score"]
+
+
+    if score >= 85:
         color = "green"
-    elif row["score"] > df["score"].quantile(0.4):
+
+    elif score >= 70:
         color = "orange"
+
     else:
         color = "red"
 
+
+    popup_html = f"""
+    <div style="
+    width:280px;
+    font-family:Arial;
+    ">
+
+    <h4>
+    🏠 {row.get('name','Housing Listing')}
+    </h4>
+
+
+    <b>📍 Neighborhood:</b>
+    {row['neighbourhood_cleansed']}
+    <br><br>
+
+
+    <b>🏠 Type:</b>
+    {row['room_type']}
+    <br><br>
+
+
+    <b>⭐ Recommendation Score:</b>
+    {row['recommendation_score']:.0f}/100
+
+    <br><br>
+
+
+    <b>💰 Rent:</b>
+    ${row['monthly_rent']:,.0f}/month
+    <br>
+
+
+    <b>🚗 Drive:</b>
+    {row['drive_time']:.0f} min
+    <br>
+
+
+    <b>🚌 Transit:</b>
+    {row['transit_time']:.0f} min
+
+    <br><br>
+
+
+    <hr>
+
+
+    <b>Why recommended?</b>
+
+    <br>
+
+    {reason_text}
+
+
+    <br>
+
+
+    <a href="
+    https://www.google.com/maps?q={row['latitude']},{row['longitude']}
+    "
+    target="_blank">
+
+    📍 Open Google Maps
+
+    </a>
+
+
+    </div>
+    """
+
     folium.CircleMarker(
-        location=[row["latitude"], row["longitude"]],
-        radius=5,
+        location=[
+            row["latitude"],
+            row["longitude"]
+        ],
+
+        radius=7,
+
         color=color,
+
         fill=True,
-        fill_opacity=0.6,
-        popup=f"""
-        <b>📍 {row['neighbourhood_cleansed']}</b><br><br>
 
-        🏠 Type:
-        {row['room_type']}<br>
+        fill_color=color,
 
-        💰 Rent:
-        ${row['monthly_rent']:.0f}/month<br>
+        fill_opacity=0.8,
 
-        🚗 Drive:
-        {row['drive_time']:.0f} min<br>
+        tooltip=row["name"],
 
-        🚌 Transit:
-        {row['transit_time']:.0f} min<br>
+        popup=None
 
-        ⭐ Score:
-        {row['recommendation_score']:.0f}/100<br><br>
-
-        <a href="https://www.google.com/maps?q={row['latitude']},{row['longitude']}" target="_blank">
-        Open Google Maps
-        </a>
-        """
     ).add_to(m)
 
 # =========================
 # 7. DISPLAY MAP
 # =========================
+legend_html = """
 
-st_folium(m, width=800, height=500)
+<div style="
+position: fixed;
+bottom: 30px;
+left: 30px;
+width: 180px;
+background-color: white;
+border:2px solid grey;
+z-index:9999;
+padding:10px;
+font-size:14px;
+">
+
+<b>⭐ Recommendation Score</b>
+
+<br><br>
+
+🟢 85-100 Excellent
+
+<br>
+
+🟠 70-85 Good
+
+<br>
+
+🔴 Below 70
+
+</div>
+
+"""
+
+
+m.get_root().html.add_child(
+    folium.Element(
+        legend_html
+    )
+)
+
+map_col, info_col = st.columns(
+    [1.8,1]
+)
+
+
+with map_col:
+
+    map_data = st_folium(
+        m,
+        width=900,
+        height=600
+    )
+
+
+with info_col:
+
+    st.subheader("🏠 Selected Listing")
+
+
+    if "selected_listing" not in st.session_state:
+        st.session_state.selected_listing = None
+
+    if "last_clicked_name" not in st.session_state:
+        st.session_state.last_clicked_name = None
+
+    if (
+        map_data
+        and map_data.get("last_object_clicked_tooltip")
+    ):
+
+        clicked_name = (
+            map_data[
+                "last_object_clicked_tooltip"
+            ]
+        )
+
+        if clicked_name != st.session_state.last_clicked_name:
+
+            selected_rows = filtered[
+                filtered["name"] == clicked_name
+            ]
+
+
+            if len(selected_rows) > 0:
+                st.session_state.selected_listing = (
+                    selected_rows.iloc[0]
+                )
+                st.session_state.last_clicked_name = (
+                    clicked_name
+                )
+
+
+    if st.session_state.selected_listing is None:
+
+        st.info(
+            "Click a marker on the map"
+        )
+
+    else:
+
+        row = st.session_state.selected_listing
+
+
+        st.markdown(
+        f"""
+        ### 🏠 {row['name']}
+
+
+        📍 **{row['neighbourhood_cleansed']}**  
+        🏠 {row['room_type']}
+
+
+        ⭐ **Recommendation Score**
+
+        # {row['recommendation_score']:.0f}/100
+
+
+        💰 ${row['monthly_rent']:,.0f}/month  
+        🚗 {row['drive_time']:.0f} min drive  
+        🚌 {row['transit_time']:.0f} min transit
+
+
+        ---
+        """
+        )
+
+        with st.container():
+
+            st.markdown(
+                "#### Why recommended?"
+            )
+
+
+            reasons = generate_explanation(
+                row,
+                filtered
+            )
+
+
+            for reason in reasons[:3]:
+
+                st.write(
+                    "✅ " + reason
+                )
+
+        st.link_button(
+            "📍 Open Google Maps",
+
+            f"https://www.google.com/maps?q={row['latitude']},{row['longitude']}"
+        )
+
+        if st.button("❌ Clear Selection"):
+
+            st.session_state.selected_listing = None
+
+            st.session_state.last_clicked_name = (
+                map_data.get("last_object_clicked_tooltip")
+            )
+
+            st.rerun()
 
 # =========================
 # 8. TOP RECOMMENDATIONS
