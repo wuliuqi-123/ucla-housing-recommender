@@ -95,15 +95,838 @@ def generate_explanation(row, df):
 
 @st.cache_data
 def load_data(version="v2"):
+
     df = pd.read_csv(
         "ucla_enriched_dataset_filtered.csv"
     )
+
+
+    if "listing_id" not in df.columns:
+
+        df["listing_id"] = (
+            df.index.astype(str)
+        )
+
+
+    df["listing_id"] = df["listing_id"].astype(int)
+
     return df
 
 df = load_data("v2")
 
 # =========================
-# 2. TITLE
+# 2. Session States
+# =========================
+
+if "selected_listing" not in st.session_state:
+    st.session_state.selected_listing = None
+
+if "compare_list" not in st.session_state:
+    st.session_state.compare_list = []
+
+if "last_clicked_id" not in st.session_state:
+    st.session_state.last_clicked_id = None
+
+if "show_compare" not in st.session_state:
+    st.session_state.show_compare = False
+
+if "compare_mode" not in st.session_state:
+    st.session_state.compare_mode = False
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+# =========================
+# 3. SHOW_MAP
+# =========================
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+
+def show_map():
+    # =========================
+    # 3.1. MAP CENTER (UCLA)
+    # =========================
+
+    ucla_center = [34.0689, -118.4452]
+
+    m = folium.Map(location=ucla_center, zoom_start=12)
+
+    # =========================
+    # 3.2. ADD POINTS TO MAP
+    # =========================
+
+    for idx, row in filtered.iterrows():
+
+        reasons = generate_explanation(
+            row,
+            filtered
+        )
+
+        reason_text = "".join(
+            [
+                f"✅ {reason}<br>"
+                for reason in reasons[:3]
+            ]
+        )
+
+        # color based on score
+        score = row["recommendation_score"]
+
+
+        if score >= 85:
+            color = "green"
+
+        elif score >= 70:
+            color = "orange"
+
+        else:
+            color = "red"
+
+
+        popup_html = f"""
+        <div style="
+        width:280px;
+        font-family:Arial;
+        ">
+
+        <h4>
+        🏠 {row.get('name','Housing Listing')}
+        </h4>
+
+
+        <b>📍 Neighborhood:</b>
+        {row['neighbourhood_cleansed']}
+        <br><br>
+
+
+        <b>🏠 Type:</b>
+        {row['room_type']}
+        <br><br>
+
+
+        <b>⭐ Recommendation Score:</b>
+        {row['recommendation_score']:.0f}/100
+
+        <br><br>
+
+
+        <b>💰 Rent:</b>
+        ${row['monthly_rent']:,.0f}/month
+        <br>
+
+
+        <b>🚗 Drive:</b>
+        {row['drive_time']:.0f} min
+        <br>
+
+
+        <b>🚌 Transit:</b>
+        {row['transit_time']:.0f} min
+
+        <br><br>
+
+
+        <hr>
+
+
+        <b>Why recommended?</b>
+
+        <br>
+
+        {reason_text}
+
+
+        <br>
+
+
+        <a href="
+        https://www.google.com/maps?q={row['latitude']},{row['longitude']}
+        "
+        target="_blank">
+
+        📍 Open Google Maps
+
+        </a>
+
+
+        </div>
+        """
+
+        folium.CircleMarker(
+            location=[
+                row["latitude"],
+                row["longitude"]
+            ],
+
+            radius=7,
+
+            color=color,
+
+            fill=True,
+
+            fill_color=color,
+
+            fill_opacity=0.8,
+
+            tooltip=str(row["listing_id"]),
+
+            popup=None
+
+        ).add_to(m)
+
+    # =========================
+    # 3.3. DISPLAY MAP
+    # =========================
+    legend_html = """
+
+    <div style="
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 180px;
+    background-color: white;
+    border:2px solid grey;
+    z-index:9999;
+    padding:10px;
+    font-size:14px;
+    ">
+
+    <b>⭐ Recommendation Score</b>
+
+    <br><br>
+
+    🟢 85-100 Excellent
+
+    <br>
+
+    🟠 70-85 Good
+
+    <br>
+
+    🔴 Below 70
+
+    </div>
+
+    """
+
+
+    m.get_root().html.add_child(
+        folium.Element(
+            legend_html
+        )
+    )
+
+    map_col, info_col = st.columns(
+        [1.8,1]
+    )
+
+
+    with map_col:
+
+        map_data = st_folium(
+            m,
+            width=900,
+            height=600
+        )
+
+
+    with info_col:
+
+        st.subheader("🏠 Selected Listing")
+
+        st.caption(
+            f"Compare selected: {len(st.session_state.compare_list)}/3"
+        )
+
+        if (
+            map_data
+            and map_data.get("last_object_clicked_tooltip")
+        ):
+
+            clicked_id = int(
+                map_data[
+                    "last_object_clicked_tooltip"
+                ]
+            )
+
+            if clicked_id != st.session_state.last_clicked_id:
+
+                selected_rows = filtered[
+                    filtered["listing_id"] == clicked_id
+                ]
+
+
+                if len(selected_rows) > 0:
+                    st.session_state.selected_listing = (
+                        selected_rows.iloc[0]
+                    )
+                    st.session_state.last_clicked_id = (
+                        clicked_id
+                    )
+
+
+        if st.session_state.selected_listing is None:
+
+            st.info(
+                "Click a marker on the map"
+            )
+
+        else:
+
+            row = st.session_state.selected_listing
+
+
+            st.markdown(
+            f"""
+            ### 🏠 {row['name']}
+
+
+            📍 **{row['neighbourhood_cleansed']}**  
+            🏠 {row['room_type']}
+
+
+            ⭐ **Recommendation Score**
+
+            # {row['recommendation_score']:.0f}/100
+
+
+            💰 ${row['monthly_rent']:,.0f}/month  
+            🚗 {row['drive_time']:.0f} min drive  
+            🚌 {row['transit_time']:.0f} min transit
+
+
+            ---
+            """
+            )
+
+            with st.container():
+
+                st.markdown(
+                    "#### Why recommended?"
+                )
+
+
+                reasons = generate_explanation(
+                    row,
+                    filtered
+                )
+
+
+                for reason in reasons[:3]:
+
+                    st.write(
+                        "✅ " + reason
+                    )
+
+            st.link_button(
+                "📍 Open Google Maps",
+
+                f"https://www.google.com/maps?q={row['latitude']},{row['longitude']}"
+            )
+
+            listing_id = row["listing_id"]
+
+
+            if listing_id in st.session_state.compare_list:
+
+
+                if st.button(
+                    "➖ Remove from Compare"
+                ):
+
+                    st.session_state.compare_list.remove(
+                        listing_id
+                    )
+
+                    st.rerun()
+
+
+            else:
+
+
+                if st.button(
+                    "➕ Add to Compare"
+                ):
+
+
+                    if len(st.session_state.compare_list) < 3:
+
+
+                        st.session_state.compare_list.append(
+                            listing_id
+                        )
+
+                        st.rerun()
+
+
+                    else:
+
+                        st.warning(
+                            "You can compare up to 3 listings."
+                        )
+
+            if st.button("❌ Clear Selection"):
+
+                st.session_state.selected_listing = None
+
+                st.session_state.last_clicked_id = int(
+                    map_data.get(
+                        "last_object_clicked_tooltip"
+                    )
+                )
+
+                st.rerun()
+
+    # =========================
+    # 3.4. ADD Two buttons to navigate
+    # =========================
+
+    col1, col2 = st.columns(2)
+
+
+    with col1:
+
+        if st.button(
+            "🔥 Top Recommendations"
+        ):
+
+            st.session_state.page = (
+                "recommendations"
+            )
+
+            st.rerun()
+
+
+    with col2:
+
+        if st.button(
+            "⚖️ Start Compare Mode"
+        ):
+
+            st.session_state.compare_mode=True
+            st.rerun()
+
+# =========================
+# 4. SHOW_RECOMMENDATIONS
+# =========================
+
+def show_recommendations():
+
+    st.title("🔥 Top Recommendations")
+
+
+    if st.button("← Back to Map"):
+
+        st.session_state.page = "home"
+
+        st.rerun()
+    # =========================
+    # 4.1. TOP RECOMMENDATIONS
+    # =========================
+
+
+    st.subheader(
+        f"🔥 Top Results — {sort_option}"
+    )
+    st.caption(
+        f"Showing listings ranked by {sort_option}"
+    )
+
+    top10 = (
+        filtered
+        .head(10)
+        .reset_index(drop=True)
+    )
+
+
+    for start_index in range(0, len(top10), 2):
+
+        card_columns = st.columns(2)
+
+        for offset, column in enumerate(card_columns):
+
+            row_index = start_index + offset
+
+            if row_index >= len(top10):
+                continue
+
+            row = top10.iloc[row_index]
+            rank = row_index + 1
+
+            reasons = generate_explanation(row, filtered)
+
+            listing_name = row.get("name", "Housing Listing")
+
+            if pd.isna(listing_name) or str(listing_name).strip() == "":
+                listing_name = "Housing Listing"
+
+            score = int(round(row["recommendation_score"]))
+
+            google_maps_url = (
+                "https://www.google.com/maps?q="
+                f"{row['latitude']},{row['longitude']}"
+            )
+
+            with column:
+                with st.container(border=True):
+
+                    st.markdown(f"### #{rank} · {listing_name}")
+
+                    st.caption(
+                        f"📍 {row['neighbourhood_cleansed']} "
+                        f"· 🏠 {row['room_type']}"
+                    )
+
+                    st.markdown(
+                        f"**⭐ Recommendation Score: {score}/100**"
+                    )
+
+                    st.progress(score / 100)
+
+                    metric_col1, metric_col2, metric_col3 = st.columns(3)
+
+                    metric_col1.metric(
+                        "Monthly Rent",
+                        f"${row['monthly_rent']:,.0f}"
+                    )
+
+                    metric_col2.metric(
+                        "Drive",
+                        f"{row['drive_time']:.0f} min"
+                    )
+
+                    metric_col3.metric(
+                        "Transit",
+                        f"{row['transit_time']:.0f} min"
+                    )
+
+                    st.markdown("#### Why recommended?")
+
+                    for reason in reasons:
+                        st.markdown(f"- ✅ {reason}")
+
+                    with st.expander("View property details"):
+
+                        detail_col1, detail_col2 = st.columns(2)
+
+                        bedrooms = row.get("bedrooms")
+                        bathrooms = row.get("bathrooms")
+                        beds = row.get("beds")
+                        accommodates = row.get("accommodates")
+                        property_type = row.get("property_type")
+
+                        detail_col1.write(
+                            f"**Bedrooms:** "
+                            f"{bedrooms if pd.notna(bedrooms) else 'N/A'}"
+                        )
+
+                        detail_col1.write(
+                            f"**Bathrooms:** "
+                            f"{bathrooms if pd.notna(bathrooms) else 'N/A'}"
+                        )
+
+                        detail_col2.write(
+                            f"**Beds:** "
+                            f"{beds if pd.notna(beds) else 'N/A'}"
+                        )
+
+                        detail_col2.write(
+                            f"**Guests:** "
+                            f"{accommodates if pd.notna(accommodates) else 'N/A'}"
+                        )
+
+                        st.write(
+                            f"**Property Type:** "
+                            f"{property_type if pd.notna(property_type) else 'N/A'}"
+                        )
+
+                        st.write(
+                            f"**Neighborhood Score:** "
+                            f"{row['neigh_score']:.2f}"
+                        )
+
+                    st.link_button(
+                        "📍 Open in Google Maps",
+                        google_maps_url,
+                        use_container_width=True
+                    )
+
+# =========================
+# 5. SHOW_COMPARE_PANEL
+# =========================
+
+def show_compare_panel():
+
+    st.title("⚖️ Compare Listings")
+
+    if st.button("← Close Compare Mode"):
+
+        st.session_state.compare_mode=False
+        st.rerun()
+    # =========================
+    # 5.1. Compare Section
+    # =========================
+
+    st.subheader(
+        "⚖️ Compare Listings"
+    )
+
+    if len(st.session_state.compare_list) > 0:
+
+        if st.button(
+            "🗑️ Clear All Comparisons"
+        ):
+
+            st.session_state.compare_list = []
+
+            st.session_state.show_compare = False
+
+            st.rerun()
+
+
+    compare_df = filtered[
+        filtered["listing_id"].isin(
+            st.session_state.compare_list
+        )
+    ]
+
+    if len(compare_df) == 0:
+
+        st.info(
+            "No listings selected yet."
+        )
+
+        return
+
+    if len(st.session_state.compare_list) > 0:
+
+
+        st.markdown(
+            "### 🏠 Selected for comparison"
+        )
+
+
+        for _, row in compare_df.iterrows():
+
+
+            col1, col2 = st.columns(
+                [6,1]
+            )
+
+
+            with col1:
+
+                st.markdown(
+                    f"""
+                    #### 🏠 {row['name']}
+
+                    📍 {row['neighbourhood_cleansed']}
+
+                    🏠 {row['room_type']}
+
+                    ⭐ Score:
+                    {row['recommendation_score']:.0f}/100
+
+                    💰 ${row['monthly_rent']:,.0f}/month
+
+                    🚗 {row['drive_time']:.0f} min drive
+
+                    🚌 {row['transit_time']:.0f} min transit
+
+                    ---
+                    """
+                )
+
+
+            with col2:
+
+                if st.button(
+                    "❌",
+                    key=f"remove_compare_{row['listing_id']}"
+                ):
+
+                    st.session_state.compare_list.remove(
+                        row['listing_id']
+                    )
+
+
+                    if len(st.session_state.compare_list) == 0:
+
+                        st.session_state.show_compare = False
+
+
+                    st.rerun()
+
+        if len(compare_df) >= 2:
+
+            if st.button(
+                "🔍 Compare Now"
+            ):
+
+                st.session_state.show_compare = True
+
+                st.rerun()
+    else:
+
+        st.info(
+            "Select listings from the map to compare."
+        )
+
+
+    if (
+        st.session_state.show_compare
+        and len(compare_df) > 0
+    ):
+        
+        best_score_id = compare_df.loc[
+            compare_df["recommendation_score"].idxmax(),
+            "listing_id"
+        ]
+
+
+        cheapest_id = compare_df.loc[
+            compare_df["monthly_rent"].idxmin(),
+            "listing_id"
+        ]
+
+
+        fastest_id = compare_df.loc[
+            compare_df["drive_time"].idxmin(),
+            "listing_id"
+        ]
+
+        st.markdown("---")
+
+
+        st.subheader(
+            "📊 Listing Comparison"
+        )
+
+
+        cols = st.columns(
+            len(compare_df)
+        )
+
+
+        for i, (_, row) in enumerate(
+            compare_df.iterrows()
+        ):
+
+
+            with cols[i]:
+
+
+                badges = []
+
+
+                if row["listing_id"] == best_score_id:
+
+                    badges.append(
+                        "⭐ Best Score"
+                    )
+
+
+                if row["listing_id"] == cheapest_id:
+
+                    badges.append(
+                        "💰 Cheapest"
+                    )
+
+
+                if row["listing_id"] == fastest_id:
+
+                    badges.append(
+                        "🚗 Fastest"
+                    )
+
+
+                badge_text = "<br>".join(
+                    badges
+                )
+
+
+                st.markdown(
+                    f"""
+                    <div style="
+                    border:1px solid #ddd;
+                    border-radius:12px;
+                    padding:15px;
+                    margin-bottom:10px;
+                    ">
+
+
+                    <h3>
+                    🏠 {row['name']}
+                    </h3>
+
+
+                    <p>
+                    {badge_text}
+                    </p>
+
+
+                    <hr>
+
+
+                    📍 <b>
+                    {row['neighbourhood_cleansed']}
+                    </b>
+
+
+                    <br><br>
+
+
+                    🏠 {row['room_type']}
+
+
+                    <br><br>
+
+
+                    ⭐ Score
+
+                    <h2>
+                    {row['recommendation_score']:.0f}/100
+                    </h2>
+
+
+                    💰 Rent
+
+                    <br>
+
+                    ${row['monthly_rent']:,.0f}/month
+
+
+                    <br><br>
+
+
+                    🚗 Drive
+
+                    <br>
+
+                    {row['drive_time']:.0f} min
+
+
+                    <br><br>
+
+
+                    🚌 Transit
+
+                    <br>
+
+                    {row['transit_time']:.0f} min
+
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+
+
+# =========================
+# 6. TITLE
 # =========================
 
 st.title("🏠 UCLA Housing Finder")
@@ -146,7 +969,7 @@ A higher score means a better balance between cost, commute, and location.
 )
 
 # =========================
-# 3. SIDEBAR FILTERS
+# 7. SIDEBAR FILTERS
 # =========================
 
 st.sidebar.header("Filters")
@@ -204,7 +1027,7 @@ sort_option = st.sidebar.selectbox(
 )
 
 # =========================
-# 4. FILTER DATA
+# 8. FILTER DATA
 # =========================
 
 filtered = df[
@@ -284,433 +1107,25 @@ with col3:
         f"{filtered['drive_time'].mean():.0f} min"
     )
 
-# =========================
-# 5. MAP CENTER (UCLA)
-# =========================
 
-ucla_center = [34.0689, -118.4452]
 
-m = folium.Map(location=ucla_center, zoom_start=12)
 
 # =========================
-# 6. ADD POINTS TO MAP
+# 9. HOME PAGE ROUTER
 # =========================
-
-for idx, row in filtered.iterrows():
-
-    reasons = generate_explanation(
-        row,
-        filtered
-    )
-
-    reason_text = "".join(
-        [
-            f"✅ {reason}<br>"
-            for reason in reasons[:3]
-        ]
-    )
-
-    # color based on score
-    score = row["recommendation_score"]
-
-
-    if score >= 85:
-        color = "green"
-
-    elif score >= 70:
-        color = "orange"
-
-    else:
-        color = "red"
-
-
-    popup_html = f"""
-    <div style="
-    width:280px;
-    font-family:Arial;
-    ">
-
-    <h4>
-    🏠 {row.get('name','Housing Listing')}
-    </h4>
-
-
-    <b>📍 Neighborhood:</b>
-    {row['neighbourhood_cleansed']}
-    <br><br>
-
-
-    <b>🏠 Type:</b>
-    {row['room_type']}
-    <br><br>
-
-
-    <b>⭐ Recommendation Score:</b>
-    {row['recommendation_score']:.0f}/100
-
-    <br><br>
-
-
-    <b>💰 Rent:</b>
-    ${row['monthly_rent']:,.0f}/month
-    <br>
-
-
-    <b>🚗 Drive:</b>
-    {row['drive_time']:.0f} min
-    <br>
-
-
-    <b>🚌 Transit:</b>
-    {row['transit_time']:.0f} min
-
-    <br><br>
-
-
-    <hr>
-
-
-    <b>Why recommended?</b>
-
-    <br>
-
-    {reason_text}
-
-
-    <br>
-
-
-    <a href="
-    https://www.google.com/maps?q={row['latitude']},{row['longitude']}
-    "
-    target="_blank">
-
-    📍 Open Google Maps
-
-    </a>
-
-
-    </div>
-    """
-
-    folium.CircleMarker(
-        location=[
-            row["latitude"],
-            row["longitude"]
-        ],
-
-        radius=7,
-
-        color=color,
-
-        fill=True,
-
-        fill_color=color,
-
-        fill_opacity=0.8,
-
-        tooltip=row["name"],
-
-        popup=None
-
-    ).add_to(m)
-
-# =========================
-# 7. DISPLAY MAP
-# =========================
-legend_html = """
-
-<div style="
-position: fixed;
-bottom: 30px;
-left: 30px;
-width: 180px;
-background-color: white;
-border:2px solid grey;
-z-index:9999;
-padding:10px;
-font-size:14px;
-">
-
-<b>⭐ Recommendation Score</b>
-
-<br><br>
-
-🟢 85-100 Excellent
-
-<br>
-
-🟠 70-85 Good
-
-<br>
-
-🔴 Below 70
-
-</div>
-
-"""
-
-
-m.get_root().html.add_child(
-    folium.Element(
-        legend_html
-    )
-)
-
-map_col, info_col = st.columns(
-    [1.8,1]
-)
-
-
-with map_col:
-
-    map_data = st_folium(
-        m,
-        width=900,
-        height=600
-    )
-
-
-with info_col:
-
-    st.subheader("🏠 Selected Listing")
-
-
-    if "selected_listing" not in st.session_state:
-        st.session_state.selected_listing = None
-
-    if "last_clicked_name" not in st.session_state:
-        st.session_state.last_clicked_name = None
-
-    if (
-        map_data
-        and map_data.get("last_object_clicked_tooltip")
-    ):
-
-        clicked_name = (
-            map_data[
-                "last_object_clicked_tooltip"
-            ]
-        )
-
-        if clicked_name != st.session_state.last_clicked_name:
-
-            selected_rows = filtered[
-                filtered["name"] == clicked_name
-            ]
-
-
-            if len(selected_rows) > 0:
-                st.session_state.selected_listing = (
-                    selected_rows.iloc[0]
-                )
-                st.session_state.last_clicked_name = (
-                    clicked_name
-                )
-
-
-    if st.session_state.selected_listing is None:
-
-        st.info(
-            "Click a marker on the map"
-        )
-
-    else:
-
-        row = st.session_state.selected_listing
-
-
-        st.markdown(
-        f"""
-        ### 🏠 {row['name']}
-
-
-        📍 **{row['neighbourhood_cleansed']}**  
-        🏠 {row['room_type']}
-
-
-        ⭐ **Recommendation Score**
-
-        # {row['recommendation_score']:.0f}/100
-
-
-        💰 ${row['monthly_rent']:,.0f}/month  
-        🚗 {row['drive_time']:.0f} min drive  
-        🚌 {row['transit_time']:.0f} min transit
-
-
-        ---
-        """
-        )
-
-        with st.container():
-
-            st.markdown(
-                "#### Why recommended?"
-            )
-
-
-            reasons = generate_explanation(
-                row,
-                filtered
-            )
-
-
-            for reason in reasons[:3]:
-
-                st.write(
-                    "✅ " + reason
-                )
-
-        st.link_button(
-            "📍 Open Google Maps",
-
-            f"https://www.google.com/maps?q={row['latitude']},{row['longitude']}"
-        )
-
-        if st.button("❌ Clear Selection"):
-
-            st.session_state.selected_listing = None
-
-            st.session_state.last_clicked_name = (
-                map_data.get("last_object_clicked_tooltip")
-            )
-
-            st.rerun()
-
-# =========================
-# 8. TOP RECOMMENDATIONS
-# =========================
-
-
-st.subheader(
-    f"🔥 Top Results — {sort_option}"
-)
-st.caption(
-    f"Showing listings ranked by {sort_option}"
-)
-
-top10 = (
-    filtered
-    .head(10)
-    .reset_index(drop=True)
-)
-
-
-for start_index in range(0, len(top10), 2):
-
-    card_columns = st.columns(2)
-
-    for offset, column in enumerate(card_columns):
-
-        row_index = start_index + offset
-
-        if row_index >= len(top10):
-            continue
-
-        row = top10.iloc[row_index]
-        rank = row_index + 1
-
-        reasons = generate_explanation(row, filtered)
-
-        listing_name = row.get("name", "Housing Listing")
-
-        if pd.isna(listing_name) or str(listing_name).strip() == "":
-            listing_name = "Housing Listing"
-
-        score = int(round(row["recommendation_score"]))
-
-        google_maps_url = (
-            "https://www.google.com/maps?q="
-            f"{row['latitude']},{row['longitude']}"
-        )
-
-        with column:
-            with st.container(border=True):
-
-                st.markdown(f"### #{rank} · {listing_name}")
-
-                st.caption(
-                    f"📍 {row['neighbourhood_cleansed']} "
-                    f"· 🏠 {row['room_type']}"
-                )
-
-                st.markdown(
-                    f"**⭐ Recommendation Score: {score}/100**"
-                )
-
-                st.progress(score / 100)
-
-                metric_col1, metric_col2, metric_col3 = st.columns(3)
-
-                metric_col1.metric(
-                    "Monthly Rent",
-                    f"${row['monthly_rent']:,.0f}"
-                )
-
-                metric_col2.metric(
-                    "Drive",
-                    f"{row['drive_time']:.0f} min"
-                )
-
-                metric_col3.metric(
-                    "Transit",
-                    f"{row['transit_time']:.0f} min"
-                )
-
-                st.markdown("#### Why recommended?")
-
-                for reason in reasons:
-                    st.markdown(f"- ✅ {reason}")
-
-                with st.expander("View property details"):
-
-                    detail_col1, detail_col2 = st.columns(2)
-
-                    bedrooms = row.get("bedrooms")
-                    bathrooms = row.get("bathrooms")
-                    beds = row.get("beds")
-                    accommodates = row.get("accommodates")
-                    property_type = row.get("property_type")
-
-                    detail_col1.write(
-                        f"**Bedrooms:** "
-                        f"{bedrooms if pd.notna(bedrooms) else 'N/A'}"
-                    )
-
-                    detail_col1.write(
-                        f"**Bathrooms:** "
-                        f"{bathrooms if pd.notna(bathrooms) else 'N/A'}"
-                    )
-
-                    detail_col2.write(
-                        f"**Beds:** "
-                        f"{beds if pd.notna(beds) else 'N/A'}"
-                    )
-
-                    detail_col2.write(
-                        f"**Guests:** "
-                        f"{accommodates if pd.notna(accommodates) else 'N/A'}"
-                    )
-
-                    st.write(
-                        f"**Property Type:** "
-                        f"{property_type if pd.notna(property_type) else 'N/A'}"
-                    )
-
-                    st.write(
-                        f"**Neighborhood Score:** "
-                        f"{row['neigh_score']:.2f}"
-                    )
-
-                st.link_button(
-                    "📍 Open in Google Maps",
-                    google_maps_url,
-                    use_container_width=True
-                )
-
 
         
+if st.session_state.page == "home":
+
+    show_map()
+
+    if st.session_state.compare_mode:
+
+        show_compare_panel()
+
+elif st.session_state.page == "recommendations":
+
+    show_recommendations()
 
 
 
