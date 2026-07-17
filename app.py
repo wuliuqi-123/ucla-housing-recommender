@@ -206,20 +206,20 @@ def show_map():
     # =========================
     # 3.2. ADD POINTS TO MAP
     # =========================
+    map_df = filtered.copy()
 
-    for idx, row in filtered.iterrows():
+    if len(map_df) > 300:
 
-        reasons = generate_explanation(
-            row,
-            filtered
+        map_df = (
+            map_df
+            .sort_values(
+                "recommendation_score",
+                ascending=False
+            )
+            .head(300)
         )
 
-        reason_text = "".join(
-            [
-                f"✅ {reason}<br>"
-                for reason in reasons[:3]
-            ]
-        )
+    for idx, row in map_df.iterrows():
 
         # color based on score
         score = row["recommendation_score"]
@@ -233,76 +233,6 @@ def show_map():
 
         else:
             color = "red"
-
-
-        popup_html = f"""
-        <div style="
-        width:280px;
-        font-family:Arial;
-        ">
-
-        <h4>
-        🏠 {row.get('name','Housing Listing')}
-        </h4>
-
-
-        <b>📍 Neighborhood:</b>
-        {row['neighbourhood_cleansed']}
-        <br><br>
-
-
-        <b>🏠 Type:</b>
-        {row['room_type']}
-        <br><br>
-
-
-        <b>⭐ Recommendation Score:</b>
-        {row['recommendation_score']:.0f}/100
-
-        <br><br>
-
-
-        <b>💰 Rent:</b>
-        ${row['monthly_rent']:,.0f}/month
-        <br>
-
-
-        <b>🚗 Drive:</b>
-        {row['drive_time']:.0f} min
-        <br>
-
-
-        <b>🚌 Transit:</b>
-        {row['transit_time']:.0f} min
-
-        <br><br>
-
-
-        <hr>
-
-
-        <b>Why recommended?</b>
-
-        <br>
-
-        {reason_text}
-
-
-        <br>
-
-
-        <a href="
-        https://www.google.com/maps?q={row['latitude']},{row['longitude']}
-        "
-        target="_blank">
-
-        📍 Open Google Maps
-
-        </a>
-
-
-        </div>
-        """
 
         folium.CircleMarker(
             location=[
