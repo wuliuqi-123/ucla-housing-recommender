@@ -6,6 +6,55 @@ st.set_page_config(
     layout="wide"
 )
 
+# =========================
+# Global UI Theme
+# =========================
+
+def load_css():
+
+    st.markdown(
+        """
+        <style>
+
+        /* ---------- Global background ---------- */
+
+        .stApp {
+            background-color: #F7F8FA;
+        }
+
+
+        /* ---------- Main content ---------- */
+
+        .block-container {
+            padding-top: 2rem;
+            padding-left: 3rem;
+            padding-right: 3rem;
+        }
+
+
+        /* ---------- Remove default markdown spacing ---------- */
+
+        h1, h2, h3 {
+            color: #1F2937;
+            font-family: "Inter", sans-serif;
+        }
+
+
+        p {
+            color:#374151;
+            font-family:"Inter", sans-serif;
+        }
+
+
+        </style>
+
+        """,
+        unsafe_allow_html=True
+    )
+
+
+load_css()
+
 st.markdown(
     """
     <style>
@@ -135,6 +184,7 @@ if "compare_mode" not in st.session_state:
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
+
 
 # =========================
 # 3. SHOW_MAP
@@ -467,47 +517,6 @@ def show_map():
                             "You can compare up to 3 listings."
                         )
 
-            if st.button("❌ Clear Selection"):
-
-                st.session_state.selected_listing = None
-
-                st.session_state.last_clicked_id = int(
-                    map_data.get(
-                        "last_object_clicked_tooltip"
-                    )
-                )
-
-                st.rerun()
-
-    # =========================
-    # 3.4. ADD Two buttons to navigate
-    # =========================
-
-    col1, col2 = st.columns(2)
-
-
-    with col1:
-
-        if st.button(
-            "🔥 Top Recommendations"
-        ):
-
-            st.session_state.page = (
-                "recommendations"
-            )
-
-            st.rerun()
-
-
-    with col2:
-
-        if st.button(
-            "⚖️ Start Compare Mode"
-        ):
-
-            st.session_state.compare_mode=True
-            st.rerun()
-
 # =========================
 # 4. SHOW_RECOMMENDATIONS
 # =========================
@@ -656,6 +665,46 @@ def show_recommendations():
 # =========================
 # 5. SHOW_COMPARE_PANEL
 # =========================
+st.markdown(
+"""
+<style>
+
+.compare-card{
+
+    background:white;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    border:1px solid #ddd;
+
+    min-height:330px;
+
+}
+
+
+.compare-card h2{
+
+    margin-top:5px;
+
+    font-size:36px;
+
+}
+
+
+.compare-card h3{
+
+    font-size:20px;
+
+}
+
+
+</style>
+
+""",
+unsafe_allow_html=True
+)
 
 def show_compare_panel():
 
@@ -676,7 +725,7 @@ def show_compare_panel():
     if len(st.session_state.compare_list) > 0:
 
         if st.button(
-            "🗑️ Clear All Comparisons"
+            "🗑️ Remove All"
         ):
 
             st.session_state.compare_list = []
@@ -718,25 +767,8 @@ def show_compare_panel():
 
             with col1:
 
-                st.markdown(
-                    f"""
-                    #### 🏠 {row['name']}
-
-                    📍 {row['neighbourhood_cleansed']}
-
-                    🏠 {row['room_type']}
-
-                    ⭐ Score:
-                    {row['recommendation_score']:.0f}/100
-
-                    💰 ${row['monthly_rent']:,.0f}/month
-
-                    🚗 {row['drive_time']:.0f} min drive
-
-                    🚌 {row['transit_time']:.0f} min transit
-
-                    ---
-                    """
+                st.write(
+                    f"🏠 {row['name']}"
                 )
 
 
@@ -818,112 +850,314 @@ def show_compare_panel():
             with cols[i]:
 
 
-                badges = []
-
+                badges_text = ""
 
                 if row["listing_id"] == best_score_id:
-
-                    badges.append(
-                        "⭐ Best Score"
-                    )
+                    badges_text += "⭐ Best Score  "
 
 
                 if row["listing_id"] == cheapest_id:
-
-                    badges.append(
-                        "💰 Cheapest"
-                    )
+                    badges_text += "💰 Cheapest  "
 
 
                 if row["listing_id"] == fastest_id:
-
-                    badges.append(
-                        "🚗 Fastest"
-                    )
-
-
-                badge_text = "<br>".join(
-                    badges
-                )
+                    badges_text += "🚗 Fastest"
 
 
                 st.markdown(
-                    f"""
-                    <div style="
-                    border:1px solid #ddd;
-                    border-radius:12px;
-                    padding:15px;
-                    margin-bottom:10px;
-                    ">
+                f"""
+                <div class="compare-card">
+
+                <h3>🏠 {row['name']}</h3>
+
+                <p>
+                <b>{badges_text}</b>
+                </p>
+
+                <hr>
+
+                📍 {row['neighbourhood_cleansed']}
+
+                <br>
+
+                🏠 {row['room_type']}
+
+                <br>
+
+                ⭐ <b>Score:</b> {row['recommendation_score']:.0f}/100
 
 
-                    <h3>
-                    🏠 {row['name']}
-                    </h3>
+                💰 ${row['monthly_rent']:,.0f}
+
+                <br>
+
+                🚗 {row['drive_time']:.0f} min
+
+                <br>
+
+                🚌 {row['transit_time']:.0f} min
 
 
-                    <p>
-                    {badge_text}
-                    </p>
+                </div>
 
-
-                    <hr>
-
-
-                    📍 <b>
-                    {row['neighbourhood_cleansed']}
-                    </b>
-
-
-                    <br><br>
-
-
-                    🏠 {row['room_type']}
-
-
-                    <br><br>
-
-
-                    ⭐ Score
-
-                    <h2>
-                    {row['recommendation_score']:.0f}/100
-                    </h2>
-
-
-                    💰 Rent
-
-                    <br>
-
-                    ${row['monthly_rent']:,.0f}/month
-
-
-                    <br><br>
-
-
-                    🚗 Drive
-
-                    <br>
-
-                    {row['drive_time']:.0f} min
-
-
-                    <br><br>
-
-
-                    🚌 Transit
-
-                    <br>
-
-                    {row['transit_time']:.0f} min
-
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                """,
+                unsafe_allow_html=True
                 )
 
+# =========================
+# 6. SHOW_NEIGHBORHOOD_INSIGHT
+# =========================
+def generate_highlights(
+    neighborhood_df,
+    overall_df
+):
 
+    highlights = []
+
+
+    avg_rent = neighborhood_df[
+        "monthly_rent"
+    ].mean()
+
+
+    avg_drive = neighborhood_df[
+        "drive_time"
+    ].mean()
+
+
+    avg_transit = neighborhood_df[
+        "transit_time"
+    ].mean()
+
+
+    overall_rent = overall_df[
+        "monthly_rent"
+    ].mean()
+
+
+
+    # Rent insight
+
+    if avg_rent < overall_rent:
+
+        highlights.append(
+            "💰 More affordable compared with nearby neighborhoods"
+        )
+
+    else:
+
+        highlights.append(
+            "💰 Higher rent area with stronger location advantages"
+        )
+
+
+    # Commute
+
+    if avg_drive <= 10:
+
+        highlights.append(
+            "🚗 Excellent driving access to UCLA"
+        )
+
+
+    if avg_transit <= 25:
+
+        highlights.append(
+            "🚌 Good public transportation options"
+        )
+
+
+    # Listing density
+
+    if len(neighborhood_df) >= 20:
+
+        highlights.append(
+            "🏠 Many housing options available"
+        )
+
+
+    return highlights
+
+
+
+# =========================
+# Main Page
+# =========================
+
+
+def show_neighborhood_insights(df):
+
+    if st.button("← Back to Map"):
+
+        st.session_state.page = "home"
+
+        st.rerun()
+
+    st.title(
+        "📍 Explore Neighborhoods"
+    )
+
+
+    st.caption(
+        "Understand the neighborhood before choosing your home."
+    )
+
+
+    # -------------------------
+    # Search Neighborhood
+    # -------------------------
+
+
+    neighborhood_list = sorted(
+        df[
+            "neighbourhood_cleansed"
+        ]
+        .dropna()
+        .unique()
+    )
+
+
+    selected = st.selectbox(
+        "Search neighborhood",
+        neighborhood_list
+    )
+
+
+    neighborhood_df = df[
+        df["neighbourhood_cleansed"]
+        == selected
+    ]
+
+
+
+    # -------------------------
+    # Overview
+    # -------------------------
+
+
+    st.markdown(
+        "---"
+    )
+
+
+    st.subheader(
+        f"🏘️ {selected}"
+    )
+
+
+    avg_rent = neighborhood_df[
+        "monthly_rent"
+    ].mean()
+
+
+    avg_drive = neighborhood_df[
+        "drive_time"
+    ].mean()
+
+
+    avg_transit = neighborhood_df[
+        "transit_time"
+    ].mean()
+
+
+
+    col1, col2, col3, col4 = st.columns(4)
+
+
+    with col1:
+
+        st.metric(
+            "💰 Average Rent",
+            f"${avg_rent:,.0f}"
+        )
+
+
+    with col2:
+
+        st.metric(
+            "🚗 Avg Drive",
+            f"{avg_drive:.0f} min"
+        )
+
+
+    with col3:
+
+        st.metric(
+            "🚌 Avg Transit",
+            f"{avg_transit:.0f} min"
+        )
+
+
+    with col4:
+
+        st.metric(
+            "🏠 Listings",
+            len(neighborhood_df)
+        )
+
+
+
+    # -------------------------
+    # Highlights
+    # -------------------------
+
+
+    st.markdown(
+        "---"
+    )
+
+
+    left, right = st.columns(
+        [1,1]
+    )
+
+
+    with left:
+
+
+        st.subheader(
+            "✨ Neighborhood Highlights"
+        )
+
+
+        highlights = generate_highlights(
+            neighborhood_df,
+            df
+        )
+
+
+        for h in highlights:
+
+            st.success(h)
+
+
+
+    with right:
+
+
+        st.subheader(
+            "⭐ Neighborhood Score"
+        )
+
+
+        score = neighborhood_df[
+            "recommendation_score"
+        ].mean()
+
+
+        st.metric(
+            "Overall Score",
+            f"{score:.0f}/100"
+        )
+
+
+        st.write(
+            """
+            This score summarizes housing
+            quality, affordability, and
+            accessibility.
+            """
+        )
 
 # =========================
 # 6. TITLE
@@ -969,62 +1203,138 @@ A higher score means a better balance between cost, commute, and location.
 )
 
 # =========================
-# 7. SIDEBAR FILTERS
+# 7. SIDEBARS
 # =========================
 
-st.sidebar.header("Filters")
 
-neighborhoods = st.sidebar.multiselect(
-    "Neighborhood",
-    options=sorted(df["neighbourhood_cleansed"].dropna().unique())
+st.sidebar.header("🔎 Search")
+
+
+# -------------------------
+# 7.1.Search Preferences
+# -------------------------
+
+with st.sidebar.expander(
+    "🏠 Search Preferences",
+    expanded=False
+):
+
+    neighborhoods = st.multiselect(
+        "📍 Neighborhood",
+        options=sorted(
+            df["neighbourhood_cleansed"]
+            .dropna()
+            .unique()
+        )
+    )
+
+
+    room_types = st.multiselect(
+        "🏠 Room Type",
+        options=sorted(
+            df["room_type"].unique()
+        ),
+        default=sorted(
+            df["room_type"].unique()
+        )
+    )
+
+
+    max_rent = st.slider(
+        "💰 Max Monthly Rent",
+        int(df["monthly_rent"].min()),
+        int(df["monthly_rent"].max()),
+        3000
+    )
+
+
+    max_drive = st.slider(
+        "🚗 Max Drive Time (min)",
+        int(df["drive_time"].min()),
+        int(df["drive_time"].max()),
+        30
+    )
+
+
+    max_transit = st.slider(
+        "🚌 Max Transit Time (min)",
+        int(df["transit_time"].min()),
+        int(df["transit_time"].max()),
+        60
+    )
+
+
+    min_score = st.slider(
+        "⭐ Minimum Recommendation Score",
+        0,
+        100,
+        50
+    )
+
+
+
+# -------------------------
+# 7.2.Ranking
+# -------------------------
+
+with st.sidebar.expander(
+    "↕ Ranking",
+    expanded=False
+):
+
+    sort_option = st.selectbox(
+        "Sort Results By",
+        [
+            "⭐ Best Recommendation",
+            "💰 Lowest Rent",
+            "🚗 Shortest Drive",
+            "🚌 Shortest Transit",
+            "📍 Best Neighborhood"
+        ]
+    )
+
+# -------------------------
+# 7.3.Explores
+# -------------------------
+
+st.sidebar.markdown("---")
+
+st.sidebar.header("✨ Explore")
+
+
+top_clicked = st.sidebar.button(
+    "🔥 Beset Matches",
+    use_container_width=True
 )
 
-room_types = st.sidebar.multiselect(
-    "Room Type",
-    options=sorted(df["room_type"].unique()),
-    default=sorted(df["room_type"].unique())
+if top_clicked:
+
+    st.session_state.page = ("recommendations")
+
+    st.rerun()
+
+
+compare_clicked = st.sidebar.button(
+    "⚖️ Compare Homes",
+    use_container_width=True
 )
 
-max_rent = st.sidebar.slider(
-    "Max Monthly Rent",
-    int(df["monthly_rent"].min()),
-    int(df["monthly_rent"].max()),
-    3000
+if compare_clicked:
+
+    st.session_state.compare_mode = True
+
+    st.rerun()
+
+neighborhood_clicked = st.sidebar.button(
+    "📍 Explore Neighborhoods",
+    use_container_width=True
 )
 
-max_drive = st.sidebar.slider(
-    "Max Drive Time (min)",
-    int(df["drive_time"].min()),
-    int(df["drive_time"].max()),
-    30
-)
+if neighborhood_clicked:
 
-max_transit = st.sidebar.slider(
-    "Max Transit Time (min)",
-    int(df["transit_time"].min()),
-    int(df["transit_time"].max()),
-    60
-)
+    st.session_state.page = "neighborhood"
 
-min_score = st.sidebar.slider(
-    "Minimum Recommendation Score",
-    0,
-    100,
-    50
-)
-
-st.sidebar.header("Ranking")
-
-sort_option = st.sidebar.selectbox(
-    "Sort Results By",
-    [
-        "⭐ Best Recommendation",
-        "💰 Lowest Rent",
-        "🚗 Shortest Drive",
-        "🚌 Shortest Transit",
-        "📍 Best Neighborhood"
-    ]
-)
+    st.rerun()
 
 # =========================
 # 8. FILTER DATA
@@ -1126,6 +1436,12 @@ if st.session_state.page == "home":
 elif st.session_state.page == "recommendations":
 
     show_recommendations()
+
+elif st.session_state.page=="neighborhood":
+
+    show_neighborhood_insights(filtered)
+
+
 
 
 
