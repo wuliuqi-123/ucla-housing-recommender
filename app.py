@@ -89,54 +89,9 @@ st.markdown(
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
+from utils.explanation import generate_explanation
+from utils.scoring import calculate_personalized_score
 
-def generate_explanation(row, df):
-    reasons = []
-
-    comparable = df[
-        (df["neighbourhood_cleansed"] == row["neighbourhood_cleansed"]) &
-        (df["room_type"] == row["room_type"]) 
-    ]
-
-    if len(comparable) < 5:
-        comparable = df[df["room_type"] == row["room_type"]]
-
-    median_rent = comparable["monthly_rent"].median()
-
-    if row["monthly_rent"] < median_rent:
-        diff = (
-            (median_rent - row["monthly_rent"])
-            / median_rent
-            * 100
-        )
-        reasons.append(
-            f"💰 {diff:.0f}% lower rent than similar listings"
-        )
-
-    median_drive = df["drive_time"].median()
-    if row["drive_time"] < median_drive:
-        reasons.append(
-            f"🚗 Faster-than-average drive to UCLA ({row['drive_time']:.0f} min)"
-        )
-
-    median_transit = df["transit_time"].median()
-    if row["transit_time"] < median_transit:
-        reasons.append(
-            f"🚌 Better-than-average transit access ({row['transit_time']:.0f} min)"
-        )
-
-    median_neigh = df["neigh_score"].median()
-    if row["neigh_score"] > median_neigh:
-        reasons.append(
-            "📍 Above-average neighborhood score"
-        )
-
-    if not reasons:
-        reasons.append(
-            "⚖️ Offers a balanced combination of rent, commute, and location"
-        )
-
-    return reasons
 
 # =========================
 # 1. LOAD DATA
@@ -185,7 +140,30 @@ if "compare_mode" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+if "user_preferences" not in st.session_state:
 
+    st.session_state.user_preferences = {
+
+        "budget": 2000,
+
+        "priority": "⭐ Best Overall",
+
+        "transportation": "🚗 Drive"
+
+    }
+
+if "favorites" not in st.session_state:
+
+    st.session_state.favorites=[]
+
+df["personalized_score"] = df.apply(
+    lambda row: calculate_personalized_score(
+        row,
+        st.session_state.user_preferences,
+        df
+    ),
+    axis=1
+)
 # =========================
 # 3. SHOW_MAP
 # =========================
@@ -222,7 +200,7 @@ def show_map():
     for idx, row in map_df.iterrows():
 
         # color based on score
-        score = row["recommendation_score"]
+        score=row["personalized_score"]
 
 
         if score >= 85:
@@ -369,7 +347,7 @@ def show_map():
 
             ⭐ **Recommendation Score**
 
-            # {row['recommendation_score']:.0f}/100
+            # {row['personalized_score']:.0f}/100
 
 
             💰 ${row['monthly_rent']:,.0f}/month  
@@ -446,6 +424,32 @@ def show_map():
                         st.warning(
                             "You can compare up to 3 listings."
                         )
+
+            if listing_id in st.session_state.favorites:
+
+
+                if st.button(
+                    "💔 Remove Favorite"
+                ):
+
+                    st.session_state.favorites.remove(
+                        listing_id
+                    )
+
+                    st.rerun()
+
+
+            else:
+
+                if st.button(
+                    "❤️ Save Home"
+                ):
+
+                    st.session_state.favorites.append(
+                        listing_id
+                    )
+
+                    st.rerun()
 
 # =========================
 # 4. SHOW_RECOMMENDATIONS
@@ -1224,7 +1228,52 @@ with st.sidebar.expander(
     )
 
 # -------------------------
-# 7.3.Explores
+# 7.3. Your Preferences
+# -------------------------
+
+with st.sidebar.expander(
+    "👤 Your Preferences"
+):
+
+    budget = st.slider(
+        "Monthly Budget",
+        800,
+        4000,
+        2000
+    )
+
+
+    priority = st.selectbox(
+        "What matters most?",
+        [
+            "⭐ Best Overall",
+            "💰 Cheapest",
+            "🚗 Closest to UCLA",
+            "🏡 Best Neighborhood"
+        ]
+    )
+
+
+    transportation = st.selectbox(
+        "Transportation",
+        [
+            "🚗 Drive",
+            "🚌 Transit"
+        ]
+    )
+
+
+    st.session_state.user_preferences = {
+
+        "budget": budget,
+
+        "priority": priority,
+
+        "transportation": transportation
+
+    }
+# -------------------------
+# 7.4.Explores
 # -------------------------
 
 st.sidebar.markdown("---")
@@ -1266,6 +1315,14 @@ if neighborhood_clicked:
 
     st.rerun()
 
+if st.sidebar.button(
+    "❤️ My Favorites"
+):
+
+    st.session_state.page = "favorites"
+
+    st.rerun()
+
 # =========================
 # 8. FILTER DATA
 # =========================
@@ -1277,6 +1334,15 @@ filtered = df[
     (df["recommendation_score"] >= min_score) &
     (df["room_type"].isin(room_types))
 ]
+
+filtered["personalized_score"] = filtered.apply(
+    lambda row: calculate_personalized_score(
+        row,
+        st.session_state.user_preferences,
+        filtered
+    ),
+    axis=1
+)
 
 if sort_option == "⭐ Best Recommendation":
 
@@ -1371,7 +1437,11 @@ elif st.session_state.page=="neighborhood":
 
     show_neighborhood_insights(filtered)
 
+elif st.session_state.page=="favorites":
 
+    from favorites import show_favorites
+
+    show_favorites(df)
 
 
 
