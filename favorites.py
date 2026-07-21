@@ -1,5 +1,11 @@
 import streamlit as st
 
+from database import (
+    load_favorites,
+    remove_favorite
+)
+
+
 
 def show_favorites(df):
 
@@ -8,15 +14,46 @@ def show_favorites(df):
         "❤️ My Favorites"
     )
 
+
     if st.button(
         "← Back to Map"
     ):
 
-        st.session_state.page="home"
+        st.session_state.page = "home"
 
         st.rerun()
 
-    if len(st.session_state.favorites)==0:
+
+
+    # =========================
+    # CHECK LOGIN
+    # =========================
+
+    if st.session_state.user_id is None:
+
+        st.warning(
+            "Please login to view your favorites."
+        )
+
+        return
+
+
+
+    user_id = st.session_state.user_id
+
+
+
+    # =========================
+    # LOAD FAVORITES FROM DATABASE
+    # =========================
+
+    favorite_ids = load_favorites(
+        user_id
+    )
+
+
+
+    if len(favorite_ids) == 0:
 
         st.info(
             "You haven't saved any homes yet."
@@ -28,9 +65,10 @@ def show_favorites(df):
 
     favorite_df = df[
         df["listing_id"].isin(
-            st.session_state.favorites
+            favorite_ids
         )
     ]
+
 
 
     st.subheader(
@@ -39,34 +77,49 @@ def show_favorites(df):
 
 
 
-    from components.listing_card import show_listing_card
-
-
-    for _,row in favorite_df.iterrows():
-
-        show_listing_card(
-            row,
-            favorite_df,
-            score_name="Personalized Score",
-            mode="favorite",
-            show_remove=True
-        )
+    from components.listing_card import (
+        show_favorite_card
+    )
 
 
 
-        if st.button(
-            "❌ Remove",
-            key=f"remove_{row['listing_id']}"
-        ):
+    # =========================
+    # TWO COLUMN CARDS
+    # =========================
+
+    for start in range(
+        0,
+        len(favorite_df),
+        2
+    ):
 
 
-            st.session_state.favorites.remove(
-                row["listing_id"]
-            )
-
-            st.rerun()
+        cols = st.columns(2)
 
 
+        for offset, col in enumerate(cols):
 
+
+            idx = start + offset
+
+
+
+            if idx >= len(favorite_df):
+
+                continue
+
+
+
+            row = favorite_df.iloc[idx]
+
+
+
+            with col:
+
+
+                show_favorite_card(
+                    row,
+                    st.session_state.user_preferences
+                )
 
 

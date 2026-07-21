@@ -49,3 +49,66 @@ def generate_explanation(row, df):
         )
 
     return reasons
+
+
+
+def generate_personalized_explanation(
+    row,
+    preferences
+):
+
+    reasons = []
+
+
+    budget = preferences["budget"]
+
+    priority = preferences["priority"]
+
+
+
+    # budget match
+
+    if row["monthly_rent"] <= budget:
+
+        reasons.append(
+            f"💰 Within your budget (${budget})"
+        )
+
+
+
+    # priority
+
+    if priority == "💰 Cheapest":
+
+        reasons.append(
+            "💰 Matches your preference for affordable housing"
+        )
+
+
+    elif priority == "🚗 Closest to UCLA":
+
+        if row["drive_time"] <= 15:
+
+            reasons.append(
+                f"🚗 Short commute to UCLA ({row['drive_time']:.0f} min)"
+            )
+
+
+    elif priority == "🏡 Best Neighborhood":
+
+        reasons.append(
+            "📍 Located in a highly rated neighborhood"
+        )
+
+
+
+    # general fallback
+
+    if row["transit_time"] <= 30:
+
+        reasons.append(
+            "🚌 Good public transportation access"
+        )
+
+
+    return reasons[:4]

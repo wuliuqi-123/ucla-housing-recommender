@@ -1,10 +1,33 @@
 import streamlit as st
+import pandas as pd
+import folium
+from streamlit_folium import st_folium
+from utils.explanation import generate_explanation
+from utils.scoring import calculate_personalized_score
+from auth import (
+    init_auth,
+    show_auth_page,
+    logout
+)
+from database import (init_database, save_favorite, load_favorites, remove_favorite)
 
 st.set_page_config(
     page_title="UCLA Housing Finder",
     page_icon="🏠",
     layout="wide"
 )
+@st.cache_resource
+def setup_database():
+
+    init_database()
+
+
+setup_database()
+# =========================
+# AUTH INITIALIZATION
+# =========================
+
+init_auth()
 
 # =========================
 # Global UI Theme
@@ -85,12 +108,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-import pandas as pd
-import folium
-from streamlit_folium import st_folium
-from utils.explanation import generate_explanation
-from utils.scoring import calculate_personalized_score
 
 
 # =========================
@@ -425,32 +442,64 @@ def show_map():
                             "You can compare up to 3 listings."
                         )
 
-            if listing_id in st.session_state.favorites:
+            # =========================
+            # FAVORITE BUTTON
+            # =========================
+
+            if st.session_state.user_id:
 
 
-                if st.button(
-                    "💔 Remove Favorite"
-                ):
+                favorite_ids = load_favorites(
+                    st.session_state.user_id
+                )
 
-                    st.session_state.favorites.remove(
-                        listing_id
-                    )
 
-                    st.rerun()
+                if listing_id in favorite_ids:
+
+
+                    if st.button(
+                        "💔 Remove Favorite",
+                        key=f"remove_{listing_id}"
+                    ):
+
+                        remove_favorite(
+                            st.session_state.user_id,
+                            int(listing_id)
+                        )
+
+                        st.rerun()
+
+
+
+                else:
+
+
+                    if st.button(
+                        "❤️ Save Home",
+                        key=f"save_{listing_id}"
+                    ):
+
+                        save_favorite(
+                            st.session_state.user_id,
+                            int(listing_id)
+                        )
+
+                        st.rerun()
+
 
 
             else:
 
+
                 if st.button(
-                    "❤️ Save Home"
+                    "❤️ Save Home",
+                    key=f"login_save_{listing_id}"
                 ):
 
-                    st.session_state.favorites.append(
-                        listing_id
+                    st.info(
+                        "Login to save your favorite homes."
                     )
-
-                    st.rerun()
-
+            
 # =========================
 # 4. SHOW_RECOMMENDATIONS
 # =========================
@@ -1141,12 +1190,84 @@ A higher score means a better balance between cost, commute, and location.
 # =========================
 
 
+# =========================
+# 7.1.ACCOUNT
+# =========================
+
+st.sidebar.header("👤 Account")
+
+
+if st.session_state.user_id:
+
+    username = st.session_state.username
+
+    st.sidebar.success(
+        f"👋 Hi, {username}"
+    )
+
+
+    favorite_count = len(
+        load_favorites(
+            st.session_state.user_id
+        )
+    )
+
+
+    st.sidebar.info(
+        f"""
+        ❤️ Saved Homes
+
+        {favorite_count} properties
+        """
+    )
+
+    if st.sidebar.button(
+        "❤️ My Favorites",
+        use_container_width=True
+    ):
+
+        st.session_state.page="favorites"
+
+        st.rerun()
+
+
+
+    if st.sidebar.button(
+        "⚙️ My Preferences",
+        use_container_width=True
+    ):
+
+        st.session_state.page="preferences"
+
+        st.rerun()
+
+
+    if st.sidebar.button(
+        "🚪 Logout"
+    ):
+        logout()
+
+
+
+else:
+
+    st.sidebar.caption(
+        "Save homes and personalize your recommendations after you login."
+    )
+
+    if st.sidebar.button(
+        "🔑 Login / Register"
+    ):
+
+        st.session_state.page = "auth"
+
+        st.rerun()
+
+# -------------------------
+# 7.2.Search Preferences
+# -------------------------
+
 st.sidebar.header("🔎 Search")
-
-
-# -------------------------
-# 7.1.Search Preferences
-# -------------------------
 
 with st.sidebar.expander(
     "🏠 Search Preferences",
@@ -1208,7 +1329,7 @@ with st.sidebar.expander(
 
 
 # -------------------------
-# 7.2.Ranking
+# 7.3.Ranking
 # -------------------------
 
 with st.sidebar.expander(
@@ -1228,7 +1349,7 @@ with st.sidebar.expander(
     )
 
 # -------------------------
-# 7.3. Your Preferences
+# 7.4. Your Preferences
 # -------------------------
 
 with st.sidebar.expander(
@@ -1273,7 +1394,7 @@ with st.sidebar.expander(
 
     }
 # -------------------------
-# 7.4.Explores
+# 7.5.Explores
 # -------------------------
 
 st.sidebar.markdown("---")
@@ -1315,13 +1436,6 @@ if neighborhood_clicked:
 
     st.rerun()
 
-if st.sidebar.button(
-    "❤️ My Favorites"
-):
-
-    st.session_state.page = "favorites"
-
-    st.rerun()
 
 # =========================
 # 8. FILTER DATA
@@ -1442,6 +1556,9 @@ elif st.session_state.page=="favorites":
     from favorites import show_favorites
 
     show_favorites(df)
+elif st.session_state.page == "auth":
+
+    show_auth_page()
 
 
 
