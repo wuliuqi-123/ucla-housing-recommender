@@ -64,9 +64,9 @@ def show_favorites(df):
 
 
     favorite_df = df[
-        df["listing_id"].isin(
-            favorite_ids
-        )
+        df["listing_id"]
+        .astype(int)
+        .isin(favorite_ids)
     ]
 
 
