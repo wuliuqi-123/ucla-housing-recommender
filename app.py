@@ -11,7 +11,9 @@ from auth import (
 )
 from database import (init_database, save_favorite, load_favorites, remove_favorite)
 
-from developer import show_developer_panel
+from config import DEBUG
+if DEBUG:
+    from developer import show_developer_panel
 
 from preference import (show_preferences, safe_index)
 
@@ -1491,8 +1493,10 @@ elif st.session_state.page == "auth":
 
     show_auth_page()
 
-elif st.session_state.page=="developer":
-
+elif (
+    DEBUG
+    and st.session_state.page == "developer"
+):
     show_developer_panel()
 
 elif st.session_state.page == "preferences":
