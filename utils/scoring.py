@@ -6,13 +6,35 @@ def calculate_personalized_score(
     preferences,
     df
 ):
+    
+    base_score = float(
+        row.get("recommendation_score", 0)
+    )
 
-    score = row["recommendation_score"]
+    if not preferences:
+        return base_score
 
+    budget = preferences.get("budget")
+    priority = preferences.get(
+        "priority",
+        "Balanced"
+    )
+    room_type = preferences.get(
+        "room_type",
+        "No preference"
+    )
+    max_drive_time = preferences.get(
+        "max_drive_time"
+    )
+    max_transit_time = preferences.get(
+        "max_transit_time"
+    )
+    preferred_neighborhood = preferences.get(
+        "preferred_neighborhood",
+        "No preference"
+    )
 
-    budget = preferences["budget"]
-
-    priority = preferences["priority"]
+    score = base_score
 
 
     if row["monthly_rent"] <= budget:

@@ -11,6 +11,10 @@ from auth import (
 )
 from database import (init_database, save_favorite, load_favorites, remove_favorite)
 
+from developer import show_developer_panel
+
+from preference import (show_preferences, safe_index)
+
 st.set_page_config(
     page_title="UCLA Housing Finder",
     page_icon="🏠",
@@ -158,16 +162,7 @@ if "page" not in st.session_state:
     st.session_state.page = "home"
 
 if "user_preferences" not in st.session_state:
-
-    st.session_state.user_preferences = {
-
-        "budget": 2000,
-
-        "priority": "⭐ Best Overall",
-
-        "transportation": "🚗 Drive"
-
-    }
+    st.session_state.user_preferences = None
 
 if "favorites" not in st.session_state:
 
@@ -1194,74 +1189,10 @@ A higher score means a better balance between cost, commute, and location.
 # 7.1.ACCOUNT
 # =========================
 
-st.sidebar.header("👤 Account")
+from account import show_account_sidebar
 
 
-if st.session_state.user_id:
-
-    username = st.session_state.username
-
-    st.sidebar.success(
-        f"👋 Hi, {username}"
-    )
-
-
-    favorite_count = len(
-        load_favorites(
-            st.session_state.user_id
-        )
-    )
-
-
-    st.sidebar.info(
-        f"""
-        ❤️ Saved Homes
-
-        {favorite_count} properties
-        """
-    )
-
-    if st.sidebar.button(
-        "❤️ My Favorites",
-        use_container_width=True
-    ):
-
-        st.session_state.page="favorites"
-
-        st.rerun()
-
-
-
-    if st.sidebar.button(
-        "⚙️ My Preferences",
-        use_container_width=True
-    ):
-
-        st.session_state.page="preferences"
-
-        st.rerun()
-
-
-    if st.sidebar.button(
-        "🚪 Logout"
-    ):
-        logout()
-
-
-
-else:
-
-    st.sidebar.caption(
-        "Save homes and personalize your recommendations after you login."
-    )
-
-    if st.sidebar.button(
-        "🔑 Login / Register"
-    ):
-
-        st.session_state.page = "auth"
-
-        st.rerun()
+show_account_sidebar()
 
 # -------------------------
 # 7.2.Search Preferences
@@ -1559,6 +1490,13 @@ elif st.session_state.page=="favorites":
 elif st.session_state.page == "auth":
 
     show_auth_page()
+
+elif st.session_state.page=="developer":
+
+    show_developer_panel()
+
+elif st.session_state.page == "preferences":
+    show_preferences(df)
 
 
 

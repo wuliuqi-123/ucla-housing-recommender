@@ -4,6 +4,7 @@ from database import (
     create_user,
     authenticate_user
 )
+from database import load_preferences
 
 
 
@@ -131,14 +132,16 @@ def login():
             password
         )
 
-
         if user_id:
-
 
             st.session_state.user_id = user_id
 
             st.session_state.username = username
 
+            # ⭐ 这里加
+            st.session_state.user_preferences = load_preferences(
+                user_id
+            )
 
             st.success(
                 f"Welcome back, {username}! 🎉"
@@ -148,10 +151,7 @@ def login():
 
             st.rerun()
 
-
-
         else:
-
 
             st.error(
                 "Invalid username or password."
@@ -170,6 +170,9 @@ def logout():
 
     st.session_state.username = None
 
+    st.session_state.user_preferences = None
+
+    st.session_state.page="home"
 
     st.success(
         "Logged out."

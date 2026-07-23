@@ -1,6 +1,7 @@
 import sqlite3
 import hashlib
 from datetime import datetime
+import pandas as pd
 
 
 DATABASE_NAME = "users.db"
@@ -66,7 +67,7 @@ def init_database():
 
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        user_id INTEGER,
+        user_id INTEGER UNIQUE NOT NULL,
 
         budget INTEGER,
 
@@ -74,6 +75,13 @@ def init_database():
 
         room_type TEXT,
 
+        max_drive_time INTEGER,
+
+        max_transit_time INTEGER,
+
+        preferred_neighborhood  TEXT DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TEXT,
 
         FOREIGN KEY(user_id)
         REFERENCES users(id)
@@ -112,7 +120,7 @@ def init_database():
 
     conn.close()
 
-
+    migrate_preferences_table()
 
 # =========================
 # PASSWORD HASH
@@ -254,56 +262,50 @@ def save_preferences(
     user_id,
     budget,
     priority,
-    room_type
+    room_type,
+    max_drive_time,
+    max_transit_time,
+    preferred_neighborhood,
 ):
-
     conn = get_connection()
-
     cursor = conn.cursor()
 
-
-    # delete old preference
-
     cursor.execute(
-    """
-    DELETE FROM preferences
+        """
+        INSERT INTO preferences (
+            user_id,
+            budget,
+            priority,
+            room_type,
+            max_drive_time,
+            max_transit_time,
+            preferred_neighborhood,
+            updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 
-    WHERE user_id=?
-
-    """,
-
-    (user_id,)
+        ON CONFLICT(user_id)
+        DO UPDATE SET
+            budget = excluded.budget,
+            priority = excluded.priority,
+            room_type = excluded.room_type,
+            max_drive_time = excluded.max_drive_time,
+            max_transit_time = excluded.max_transit_time,
+            preferred_neighborhood = excluded.preferred_neighborhood,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            int(user_id),
+            int(budget),
+            priority,
+            room_type,
+            int(max_drive_time),
+            int(max_transit_time),
+            preferred_neighborhood,
+        ),
     )
-
-
-    cursor.execute(
-    """
-    INSERT INTO preferences
-
-    (
-        user_id,
-        budget,
-        priority,
-        room_type
-    )
-
-    VALUES
-    (?,?,?,?)
-
-    """,
-
-    (
-        user_id,
-        budget,
-        priority,
-        room_type
-    )
-
-    )
-
 
     conn.commit()
-
     conn.close()
 
 
@@ -312,56 +314,42 @@ def save_preferences(
 # LOAD PREFERENCE
 # =========================
 
-def load_preferences(
-    user_id
-):
-
+def load_preferences(user_id):
     conn = get_connection()
-
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-
     cursor.execute(
-    """
-    SELECT
-
-    budget,
-    priority,
-    room_type
-
-
-    FROM preferences
-
-
-    WHERE user_id=?
-
-    """,
-
-    (user_id,)
+        """
+        SELECT
+            budget,
+            priority,
+            room_type,
+            max_drive_time,
+            max_transit_time,
+            preferred_neighborhood,
+            updated_at
+        FROM preferences
+        WHERE user_id = ?
+        """,
+        (int(user_id),),
     )
 
-
-    result = cursor.fetchone()
-
-
+    row = cursor.fetchone()
     conn.close()
 
+    if row is None:
+        return None
 
-
-    if result:
-
-        return {
-
-            "budget": result[0],
-
-            "priority": result[1],
-
-            "room_type": result[2]
-
-        }
-
-
-    return None
+    return {
+        "budget": row["budget"],
+        "priority": row["priority"],
+        "room_type": row["room_type"],
+        "max_drive_time": row["max_drive_time"],
+        "max_transit_time": row["max_transit_time"],
+        "preferred_neighborhood": row["preferred_neighborhood"],
+        "updated_at": row["updated_at"],
+    }
 
 
 
@@ -474,3 +462,162 @@ def remove_favorite(
     conn.commit()
 
     conn.close()
+
+
+# =========================
+# Helper Functions
+# =========================
+
+def get_all_users():
+
+    conn = get_connection()
+
+    df = pd.read_sql_query(
+
+        """
+        SELECT *
+        FROM users
+        """,
+
+        conn
+
+    )
+
+    conn.close()
+
+    return df
+
+
+def get_all_favorites():
+
+    conn = get_connection()
+
+    df = pd.read_sql_query(
+
+        """
+        SELECT *
+        FROM favorites
+        """,
+
+        conn
+
+    )
+
+    conn.close()
+
+    return df
+
+
+def get_all_preferences():
+
+    conn = get_connection()
+
+    df = pd.read_sql_query(
+
+        """
+        SELECT *
+        FROM preferences
+        """,
+
+        conn
+
+    )
+
+    conn.close()
+
+    return df
+
+def get_database_summary():
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM users"
+    )
+
+    users = cursor.fetchone()[0]
+
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM favorites"
+    )
+
+    favorites = cursor.fetchone()[0]
+
+
+    cursor.execute(
+        "SELECT COUNT(*) FROM preferences"
+    )
+
+    preferences = cursor.fetchone()[0]
+
+
+    conn.close()
+
+
+    return {
+
+        "users": users,
+
+        "favorites": favorites,
+
+        "preferences": preferences
+
+    }
+
+def migrate_preferences_table():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("PRAGMA table_info(preferences)")
+    existing_columns = {
+        row[1] for row in cursor.fetchall()
+    }
+
+    columns_to_add = {
+        "max_drive_time": "INTEGER",
+        "max_transit_time": "INTEGER",
+        "preferred_neighborhood": "TEXT",
+        "updated_at": "TEXT",
+    }
+
+    for column_name, column_type in columns_to_add.items():
+        if column_name not in existing_columns:
+            cursor.execute(
+                f"""
+                ALTER TABLE preferences
+                ADD COLUMN {column_name} {column_type}
+                """
+            )
+
+    # 清理可能存在的重复 preference
+    cursor.execute(
+        """
+        DELETE FROM preferences
+        WHERE id NOT IN (
+            SELECT MAX(id)
+            FROM preferences
+            GROUP BY user_id
+        )
+        """
+    )
+
+    # 给 user_id 增加唯一约束效果
+    cursor.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_preferences_user_id
+        ON preferences(user_id)
+        """
+    )
+
+    conn.commit()
+    conn.close()
+
+
+
+
+
